@@ -1,0 +1,11 @@
+LICENSE
+README.md
+setup.py
+drift_corrector.egg-info/PKG-INFO
+drift_corrector.egg-info/SOURCES.txt
+drift_corrector.egg-info/dependency_links.txt
+drift_corrector.egg-info/requires.txt
+drift_corrector.egg-info/top_level.txt
+src/__init__.py
+src/corrector.py
+src/strategies.py

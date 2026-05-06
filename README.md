@@ -1,0 +1,205 @@
+# Drift Corrector
+
+> Automatic correction prompts for drifting LLM agents.
+
+[![PyPI version](https://badge.fury.io/py/drift-corrector.svg)](https://pypi.org/project/drift-corrector/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+When your LLM agent drifts, drift-corrector generates the right correction prompt to get it back on track.
+
+Part of the [Stable-Agent](https://github.com/Stable-Agent/stable-agent) ecosystem.
+
+## What It Does
+
+Once you've detected drift (using [drift-detector](https://github.com/Stable-Agent/Drift-Detector) or your own system), drift-corrector generates a corrective prompt to re-anchor the agent to its original task.
+
+Three strategies based on drift severity:
+- **Gentle Reminder** (low drift) - Soft nudge to refocus
+- **Structured Anchor** (medium drift) - Explicit recommitment to goal
+- **Emergency Reset** (severe drift) - Hard reset of agent behavior
+
+Or use the **Adaptive Strategy** (default) which picks the right approach automatically.
+
+## Installation
+
+```bash
+pip install drift-corrector
+```
+
+For the full detection + correction workflow:
+```bash
+pip install drift-detector drift-corrector
+```
+
+## Quick Start
+
+```python
+from drift_corrector import DriftCorrector
+
+corrector = DriftCorrector()
+
+# Generate a correction
+correction = corrector.generate_correction(
+    goal="Analyze financial reports professionally",
+    constraints=[
+        "Only cite explicit data",
+        "Maintain professional tone"
+    ],
+    drift_score=0.45,  # Medium drift
+    turn=8,
+    violated_constraint_indices=[0],  # First constraint violated
+)
+
+print(correction)
+# [IMPORTANT - REFOCUS NEEDED]
+# You have drifted from your original objective.
+# 
+# ORIGINAL TASK: Analyze financial reports professionally
+# 
+# CRITICAL CONSTRAINTS (you must follow these):
+# - Only cite explicit data
+# - Maintain professional tone
+# 
+# Violated constraints:
+# - Only cite explicit data
+# 
+# Recommit to the above constraints in your next response.
+
+# Inject this into your next LLM call
+```
+
+## Integration with drift-detector
+
+The two libraries are designed to work together:
+
+```python
+from drift_detector import DriftDetector
+from drift_corrector import DriftCorrector
+
+detector = DriftDetector()
+detector.setup(
+    goal="Analyze financial reports",
+    constraints=["Only cite explicit data", "Be professional"]
+)
+
+corrector = DriftCorrector()
+
+# In your conversation loop:
+for turn, response in enumerate(responses, start=1):
+    result = detector.check_response(response, turn=turn)
+    
+    if result.is_drift:
+        correction = corrector.generate_correction(
+            goal=detector.original_goal,
+            constraints=detector.original_constraints,
+            drift_score=result.total_drift,
+            turn=turn,
+            violated_constraint_indices=result.violated_constraints,
+        )
+        # Inject correction into next prompt to LLM
+        next_prompt = correction + "\n\n" + user_message
+```
+
+## Correction Strategies
+
+### Pre-built Strategies
+
+```python
+from drift_corrector import (
+    GentleReminderStrategy,
+    StructuredAnchorStrategy,
+    EmergencyResetStrategy,
+    AdaptiveStrategy,  # Default
+)
+
+# Use a specific strategy
+corrector = DriftCorrector(strategy=StructuredAnchorStrategy())
+```
+
+### Custom Strategies
+
+Build your own correction strategy:
+
+```python
+from drift_corrector import CorrectionStrategy
+
+class MyCustomStrategy(CorrectionStrategy):
+    @property
+    def name(self) -> str:
+        return "my_custom"
+    
+    def generate(self, goal, constraints, drift_score, violated_constraints=None):
+        return f"Custom correction prompt for {goal}..."
+
+corrector = DriftCorrector(strategy=MyCustomStrategy())
+```
+
+## Severity Mapping
+
+| Drift Score | Default Strategy | When to Use |
+|-------------|------------------|-------------|
+| 0.00 - 0.30 | Gentle Reminder | Minor drift, soft nudge |
+| 0.30 - 0.60 | Structured Anchor | Clear drift, explicit recommitment |
+| 0.60 - 1.00 | Emergency Reset | Severe drift, hard reset |
+
+Configure thresholds:
+```python
+from drift_corrector import AdaptiveStrategy
+
+custom_adaptive = AdaptiveStrategy(
+    gentle_threshold=0.25,
+    structured_threshold=0.55,
+)
+corrector = DriftCorrector(strategy=custom_adaptive)
+```
+
+## API Reference
+
+### `DriftCorrector`
+
+```python
+DriftCorrector(strategy: Optional[CorrectionStrategy] = None)
+```
+
+Methods:
+- `generate_correction(goal, constraints, drift_score, turn, violated_constraint_indices)` - Generate correction prompt
+- `get_correction_history()` - Get all corrections generated
+- `get_correction_summary()` - Get statistics about corrections
+- `reset()` - Clear correction history
+
+## Performance
+
+- **Latency**: <1ms (just string formatting)
+- **Memory**: Minimal (no model required)
+- **Dependencies**: None (pure Python)
+
+## Use Cases
+
+- **Production safety net** - Auto-correct drifting agents in real-time
+- **Quality improvement** - Recover from constraint violations
+- **A/B testing** - Compare correction strategies
+- **Research** - Study which corrections work best
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md)
+- [Strategy Guide](docs/strategies.md)
+- [Custom Strategies](docs/custom-strategies.md)
+- [Integration Examples](docs/integration.md)
+
+## Related Projects
+
+- [drift-detector](https://github.com/Stable-Agent/Drift-Detector) - Detect drift to correct
+- [stable-agent](https://github.com/Stable-Agent/stable-agent) - Combined solution
+- [stable-agent-examples](https://github.com/Stable-Agent/stable-agent-examples) - Tutorials
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT License - see [LICENSE](LICENSE).
+
+Copyright (c) 2026 Stable-Agent Contributors
